@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { World } from './World'
 import { Guardian } from '../entities/Guardian'
 import { InputSystem } from '../systems/InputSystem'
+import { WaveManager } from './WaveManager'
 
 export class Game {
   private scene: THREE.Scene
@@ -10,9 +11,13 @@ export class Game {
   private world: World
   private guardian: Guardian
   private input: InputSystem
+  private waveManager: WaveManager
 
   private lastTime = 0
   private running = false
+  private gameTime = 0
+  public kills = 0
+  public gameOver = false
 
   constructor() {
     // Scene
@@ -48,6 +53,9 @@ export class Game {
 
     // Input System
     this.input = new InputSystem()
+
+    // Wave Manager
+    this.waveManager = new WaveManager(this.scene, this.world)
 
     // Position camera behind guardian
     this.updateCamera()
@@ -101,6 +109,10 @@ export class Game {
   }
 
   private update(dt: number): void {
+    if (this.gameOver) return
+
+    this.gameTime += dt
+
     // Handle input
     const moveDir = this.input.getMovementDirection()
     this.guardian.moveDirection(moveDir)
@@ -129,6 +141,26 @@ export class Game {
       -halfSize,
       halfSize
     )
+
+    // Update wave manager
+    const waveResult = this.waveManager.update(
+      dt,
+      this.guardian.position,
+      this.gameTime
+    )
+
+    // Apply damage to guardian
+    if (waveResult.damageToPlayer > 0) {
+      this.guardian.takeDamage(waveResult.damageToPlayer * dt)
+    }
+
+    this.kills += waveResult.enemiesKilled
+
+    // Check game over
+    if (this.guardian.isDead()) {
+      this.gameOver = true
+      console.log(`Game Over! Wave: ${this.waveManager.currentWave}, Kills: ${this.kills}`)
+    }
 
     this.updateCamera()
   }
@@ -159,5 +191,9 @@ export class Game {
 
   public getGuardian(): Guardian {
     return this.guardian
+  }
+
+  public getWaveManager(): WaveManager {
+    return this.waveManager
   }
 }
