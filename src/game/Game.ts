@@ -3,6 +3,7 @@ import { World } from './World'
 import { Guardian } from '../entities/Guardian'
 import { InputSystem } from '../systems/InputSystem'
 import { WaveManager } from './WaveManager'
+import { CombatSystem } from '../systems/CombatSystem'
 
 export class Game {
   private scene: THREE.Scene
@@ -12,6 +13,7 @@ export class Game {
   private guardian: Guardian
   private input: InputSystem
   private waveManager: WaveManager
+  private combatSystem: CombatSystem
 
   private lastTime = 0
   private running = false
@@ -56,6 +58,12 @@ export class Game {
 
     // Wave Manager
     this.waveManager = new WaveManager(this.scene, this.world)
+
+    // Combat system
+    this.combatSystem = new CombatSystem(this.scene, this.world)
+
+    // Click to target
+    this.renderer.domElement.addEventListener('click', this.onClick.bind(this))
 
     // Position camera behind guardian
     this.updateCamera()
@@ -156,6 +164,14 @@ export class Game {
 
     this.kills += waveResult.enemiesKilled
 
+    // Update combat system
+    this.combatSystem.update(
+      dt,
+      this.gameTime,
+      this.guardian,
+      this.waveManager.getEnemies()
+    )
+
     // Check game over
     if (this.guardian.isDead()) {
       this.gameOver = true
@@ -163,6 +179,29 @@ export class Game {
     }
 
     this.updateCamera()
+  }
+
+  private onClick(event: MouseEvent): void {
+    // Raycast to find clicked enemy
+    const mouse = new THREE.Vector2(
+      (event.clientX / window.innerWidth) * 2 - 1,
+      -(event.clientY / window.innerHeight) * 2 + 1
+    )
+
+    const raycaster = new THREE.Raycaster()
+    raycaster.setFromCamera(mouse, this.camera)
+
+    const enemies = this.waveManager.getEnemies()
+    for (const enemy of enemies) {
+      const intersects = raycaster.intersectObject(enemy.mesh, true)
+      if (intersects.length > 0) {
+        this.combatSystem.setTarget(enemy)
+        return
+      }
+    }
+
+    // Click on empty space clears target
+    this.combatSystem.setTarget(null)
   }
 
   private updateCamera(): void {
