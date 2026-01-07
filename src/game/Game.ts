@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { World } from './World'
 import { Guardian } from '../entities/Guardian'
+import { InputSystem } from '../systems/InputSystem'
 
 export class Game {
   private scene: THREE.Scene
@@ -8,6 +9,7 @@ export class Game {
   private renderer: THREE.WebGLRenderer
   private world: World
   private guardian: Guardian
+  private input: InputSystem
 
   private lastTime = 0
   private running = false
@@ -43,6 +45,9 @@ export class Game {
     // Guardian (player)
     const startPos = new THREE.Vector3(0, 20, 0)
     this.guardian = new Guardian(this.scene, startPos)
+
+    // Input System
+    this.input = new InputSystem()
 
     // Position camera behind guardian
     this.updateCamera()
@@ -96,11 +101,35 @@ export class Game {
   }
 
   private update(dt: number): void {
+    // Handle input
+    const moveDir = this.input.getMovementDirection()
+    this.guardian.moveDirection(moveDir)
+
+    const heightDelta = this.input.getHeightDelta()
+    if (heightDelta !== 0) {
+      this.guardian.changeHeight(heightDelta)
+    }
+
+    // Update guardian
     const terrainHeight = this.world.getHeightAt(
       this.guardian.position.x,
       this.guardian.position.z
     )
     this.guardian.update(dt, terrainHeight)
+
+    // Clamp to world bounds
+    const halfSize = this.world.getSize() / 2 - 5
+    this.guardian.position.x = THREE.MathUtils.clamp(
+      this.guardian.position.x,
+      -halfSize,
+      halfSize
+    )
+    this.guardian.position.z = THREE.MathUtils.clamp(
+      this.guardian.position.z,
+      -halfSize,
+      halfSize
+    )
+
     this.updateCamera()
   }
 
