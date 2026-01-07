@@ -1,11 +1,13 @@
 import * as THREE from 'three'
 import { World } from './World'
+import { Guardian } from '../entities/Guardian'
 
 export class Game {
   private scene: THREE.Scene
   private camera: THREE.PerspectiveCamera
   private renderer: THREE.WebGLRenderer
   private world: World
+  private guardian: Guardian
 
   private lastTime = 0
   private running = false
@@ -37,6 +39,13 @@ export class Game {
 
     // World
     this.world = new World(this.scene)
+
+    // Guardian (player)
+    const startPos = new THREE.Vector3(0, 20, 0)
+    this.guardian = new Guardian(this.scene, startPos)
+
+    // Position camera behind guardian
+    this.updateCamera()
 
     // Events
     window.addEventListener('resize', this.onResize.bind(this))
@@ -86,8 +95,21 @@ export class Game {
     this.render()
   }
 
-  private update(_dt: number): void {
-    // Game logic will go here
+  private update(dt: number): void {
+    const terrainHeight = this.world.getHeightAt(
+      this.guardian.position.x,
+      this.guardian.position.z
+    )
+    this.guardian.update(dt, terrainHeight)
+    this.updateCamera()
+  }
+
+  private updateCamera(): void {
+    // Third-person camera behind and above guardian
+    const offset = new THREE.Vector3(0, 15, 25)
+    const targetPos = this.guardian.position.clone().add(offset)
+    this.camera.position.lerp(targetPos, 0.1)
+    this.camera.lookAt(this.guardian.position)
   }
 
   private render(): void {
@@ -104,5 +126,9 @@ export class Game {
 
   public getWorld(): World {
     return this.world
+  }
+
+  public getGuardian(): Guardian {
+    return this.guardian
   }
 }
