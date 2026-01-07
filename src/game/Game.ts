@@ -4,6 +4,7 @@ import { Guardian } from '../entities/Guardian'
 import { InputSystem } from '../systems/InputSystem'
 import { WaveManager } from './WaveManager'
 import { CombatSystem } from '../systems/CombatSystem'
+import { HUD } from '../ui/HUD'
 
 export class Game {
   private scene: THREE.Scene
@@ -14,6 +15,7 @@ export class Game {
   private input: InputSystem
   private waveManager: WaveManager
   private combatSystem: CombatSystem
+  private hud: HUD
 
   private lastTime = 0
   private running = false
@@ -61,6 +63,9 @@ export class Game {
 
     // Combat system
     this.combatSystem = new CombatSystem(this.scene, this.world)
+
+    // HUD
+    this.hud = new HUD()
 
     // Click to target
     this.renderer.domElement.addEventListener('click', this.onClick.bind(this))
@@ -172,10 +177,19 @@ export class Game {
       this.waveManager.getEnemies()
     )
 
+    // Update HUD
+    this.hud.updateHealth(this.guardian.health, this.guardian.maxHealth)
+    this.hud.updateWave(this.waveManager.currentWave)
+    this.hud.updateKills(this.kills)
+
     // Check game over
     if (this.guardian.isDead()) {
       this.gameOver = true
-      console.log(`Game Over! Wave: ${this.waveManager.currentWave}, Kills: ${this.kills}`)
+      this.hud.showGameOver(
+        this.waveManager.currentWave,
+        this.kills,
+        this.gameTime
+      )
     }
 
     this.updateCamera()
