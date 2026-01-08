@@ -3,11 +3,16 @@ import * as THREE from 'three'
 export class InputSystem {
   private keys: Set<string> = new Set()
   private wheelDelta = 0
+  private leftMouseDown = false
+  private domElement: HTMLElement
 
-  constructor() {
+  constructor(domElement: HTMLElement = document.body) {
+    this.domElement = domElement
     window.addEventListener('keydown', this.onKeyDown.bind(this))
     window.addEventListener('keyup', this.onKeyUp.bind(this))
     window.addEventListener('wheel', this.onWheel.bind(this), { passive: false })
+    this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this))
+    this.domElement.addEventListener('mouseup', this.onMouseUp.bind(this))
   }
 
   private onKeyDown(event: KeyboardEvent): void {
@@ -21,6 +26,18 @@ export class InputSystem {
   private onWheel(event: WheelEvent): void {
     event.preventDefault()
     this.wheelDelta -= Math.sign(event.deltaY)
+  }
+
+  private onMouseDown(event: MouseEvent): void {
+    if (event.button === 0) {
+      this.leftMouseDown = true
+    }
+  }
+
+  private onMouseUp(event: MouseEvent): void {
+    if (event.button === 0) {
+      this.leftMouseDown = false
+    }
   }
 
   public getMovementDirection(): THREE.Vector3 {
@@ -56,9 +73,15 @@ export class InputSystem {
     return this.keys.has(code)
   }
 
+  public isLeftMouseDown(): boolean {
+    return this.leftMouseDown
+  }
+
   public dispose(): void {
     window.removeEventListener('keydown', this.onKeyDown.bind(this))
     window.removeEventListener('keyup', this.onKeyUp.bind(this))
     window.removeEventListener('wheel', this.onWheel.bind(this))
+    this.domElement.removeEventListener('mousedown', this.onMouseDown.bind(this))
+    this.domElement.removeEventListener('mouseup', this.onMouseUp.bind(this))
   }
 }

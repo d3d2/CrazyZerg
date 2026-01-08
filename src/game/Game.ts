@@ -5,6 +5,10 @@ import { InputSystem } from '../systems/InputSystem'
 import { WaveManager } from './WaveManager'
 import { CombatSystem } from '../systems/CombatSystem'
 import { HUD } from '../ui/HUD'
+import { computeIsFiring } from '../systems/fireIntent'
+
+// Balance constants
+const AIM_ASSIST_RADIUS = 2
 
 export class Game {
   private scene: THREE.Scene
@@ -16,6 +20,11 @@ export class Game {
   private waveManager: WaveManager
   private combatSystem: CombatSystem
   private hud: HUD
+
+  // Aim ring indicator
+  private aimRing?: THREE.Mesh
+  private raycaster = new THREE.Raycaster()
+  private mouse = new THREE.Vector2()
 
   private lastTime = 0
   private running = false
@@ -56,7 +65,7 @@ export class Game {
     this.guardian = new Guardian(this.scene, startPos)
 
     // Input System
-    this.input = new InputSystem()
+    this.input = new InputSystem(this.renderer.domElement)
 
     // Wave Manager
     this.waveManager = new WaveManager(this.scene, this.world)
@@ -67,8 +76,14 @@ export class Game {
     // HUD
     this.hud = new HUD()
 
+    // Aim ring indicator (shows aim assist radius when firing)
+    this.createAimRing()
+
     // Click to target
     this.renderer.domElement.addEventListener('click', this.onClick.bind(this))
+
+    // Mouse move for aim tracking
+    this.renderer.domElement.addEventListener('mousemove', this.onMouseMove.bind(this))
 
     // Position camera behind guardian
     this.updateCamera()
@@ -99,6 +114,58 @@ export class Game {
     this.camera.aspect = window.innerWidth / window.innerHeight
     this.camera.updateProjectionMatrix()
     this.renderer.setSize(window.innerWidth, window.innerHeight)
+  }
+
+  private createAimRing(): void {
+    const geometry = new THREE.RingGeometry(AIM_ASSIST_RADIUS - 0.1, AIM_ASSIST_RADIUS, 32)
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffff00,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide
+    })
+    this.aimRing = new THREE.Mesh(geometry, material)
+    this.aimRing.rotation.x = -Math.PI / 2
+    this.aimRing.visible = false // Hidden by default
+    this.scene.add(this.aimRing)
+  }
+
+  private onMouseMove(event: MouseEvent): void {
+    // Update mouse coordinates for raycasting
+    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1
+    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+
+    // Update aim ring position
+    this.updateAimRing()
+  }
+
+  private updateAimRing(): void {
+    if (!this.aimRing) return
+
+    // Only show aim ring when firing
+    const isFiring = computeIsFiring({
+      leftMouseDown: this.input.isLeftMouseDown(),
+      gameOver: this.gameOver,
+    })
+
+    if (!isFiring) {
+      this.aimRing.visible = false
+      return
+    }
+
+    // Raycast to find terrain position under mouse
+    this.raycaster.setFromCamera(this.mouse, this.camera)
+
+    // Create a plane at y=0 for raycasting
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+    const intersectPoint = new THREE.Vector3()
+    this.raycaster.ray.intersectPlane(plane, intersectPoint)
+
+    if (intersectPoint) {
+      this.aimRing.visible = true
+      this.aimRing.position.copy(intersectPoint)
+      this.aimRing.position.y += 0.05 // Slightly above ground
+    }
   }
 
   public start(): void {
@@ -169,7 +236,15 @@ export class Game {
 
     this.kills += waveResult.enemiesKilled
 
+    // Update aim ring visibility
+    this.updateAimRing()
+
     // Update combat system
+    const isFiring = computeIsFiring({
+      leftMouseDown: this.input.isLeftMouseDown(),
+      gameOver: this.gameOver,
+    })
+    this.combatSystem.setFireIntent(isFiring)
     this.combatSystem.update(
       dt,
       this.gameTime,

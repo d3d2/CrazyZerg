@@ -15,6 +15,15 @@ export abstract class Enemy {
 
   public isDead = false
 
+  // Orbit/strafe movement properties
+  private strafeDirection = 1 // 1 for clockwise, -1 for counter-clockwise
+  private strafeChangeTimer = 0
+  private readonly STRAFE_CHANGE_INTERVAL = 1.5 // Change direction every 1.5 seconds
+
+  // Target highlight
+  private highlightMesh?: THREE.Mesh
+  private isHighlighted = false
+
   constructor(
     scene: THREE.Scene,
     startPosition: THREE.Vector3,
@@ -50,16 +59,33 @@ export abstract class Enemy {
     const distance = direction.length()
 
     if (distance > this.attackRange) {
+      // Move toward target when outside attack range
       direction.normalize()
       this.velocity.copy(direction.multiplyScalar(this.speed))
     } else {
-      this.velocity.set(0, 0, 0)
+      // Orbit/strafe behavior when within attack range
+      // Update strafe direction timer
+      this.strafeChangeTimer += dt
+      if (this.strafeChangeTimer >= this.STRAFE_CHANGE_INTERVAL) {
+        this.strafeDirection *= -1 // Flip direction
+        this.strafeChangeTimer = 0
+      }
+
+      // Calculate perpendicular direction for strafing
+      const toTarget = direction.clone().normalize()
+      const strafeDirection = new THREE.Vector3(-toTarget.z, 0, toTarget.x) // Perpendicular (90 degrees)
+      strafeDirection.multiplyScalar(this.strafeDirection * this.speed)
+
+      this.velocity.copy(strafeDirection)
     }
 
     this.position.add(this.velocity.clone().multiplyScalar(dt))
     this.position.y = terrainHeight
 
     this.mesh.position.copy(this.position)
+
+    // Update highlight position
+    this.updateHighlight()
 
     // Face target
     if (distance > 0.1) {
@@ -92,7 +118,54 @@ export abstract class Enemy {
     return this.position.distanceTo(target)
   }
 
+  public setHighlighted(scene: THREE.Scene, highlighted: boolean): void {
+    if (this.isHighlighted === highlighted) return
+
+    this.isHighlighted = highlighted
+
+    if (highlighted) {
+      // Create highlight mesh
+      const geometry = new THREE.RingGeometry(2, 2.3, 32)
+      const material = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide
+      })
+      this.highlightMesh = new THREE.Mesh(geometry, material)
+      this.highlightMesh.rotation.x = -Math.PI / 2
+      this.highlightMesh.position.copy(this.position)
+      this.highlightMesh.position.y += 0.1 // Slightly above ground
+      scene.add(this.highlightMesh)
+    } else if (this.highlightMesh) {
+      // Remove highlight mesh
+      scene.remove(this.highlightMesh)
+      this.highlightMesh.geometry.dispose()
+      if (this.highlightMesh.material instanceof THREE.Material) {
+        this.highlightMesh.material.dispose()
+      }
+      this.highlightMesh = undefined
+    }
+  }
+
+  public updateHighlight(): void {
+    if (this.highlightMesh) {
+      this.highlightMesh.position.copy(this.position)
+      this.highlightMesh.position.y += 0.1
+    }
+  }
+
   public dispose(scene: THREE.Scene): void {
+    // Clean up highlight
+    if (this.highlightMesh) {
+      scene.remove(this.highlightMesh)
+      this.highlightMesh.geometry.dispose()
+      if (this.highlightMesh.material instanceof THREE.Material) {
+        this.highlightMesh.material.dispose()
+      }
+      this.highlightMesh = undefined
+    }
+
     scene.remove(this.mesh)
     this.mesh.traverse((child) => {
       if (child instanceof THREE.Mesh) {
