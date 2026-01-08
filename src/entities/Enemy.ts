@@ -15,6 +15,11 @@ export abstract class Enemy {
 
   public isDead = false
 
+  // Orbit/strafe movement properties
+  private strafeDirection = 1 // 1 for clockwise, -1 for counter-clockwise
+  private strafeChangeTimer = 0
+  private readonly STRAFE_CHANGE_INTERVAL = 1.5 // Change direction every 1.5 seconds
+
   constructor(
     scene: THREE.Scene,
     startPosition: THREE.Vector3,
@@ -50,10 +55,24 @@ export abstract class Enemy {
     const distance = direction.length()
 
     if (distance > this.attackRange) {
+      // Move toward target when outside attack range
       direction.normalize()
       this.velocity.copy(direction.multiplyScalar(this.speed))
     } else {
-      this.velocity.set(0, 0, 0)
+      // Orbit/strafe behavior when within attack range
+      // Update strafe direction timer
+      this.strafeChangeTimer += dt
+      if (this.strafeChangeTimer >= this.STRAFE_CHANGE_INTERVAL) {
+        this.strafeDirection *= -1 // Flip direction
+        this.strafeChangeTimer = 0
+      }
+
+      // Calculate perpendicular direction for strafing
+      const toTarget = direction.clone().normalize()
+      const strafeDirection = new THREE.Vector3(-toTarget.z, 0, toTarget.x) // Perpendicular (90 degrees)
+      strafeDirection.multiplyScalar(this.strafeDirection * this.speed)
+
+      this.velocity.copy(strafeDirection)
     }
 
     this.position.add(this.velocity.clone().multiplyScalar(dt))
