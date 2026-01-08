@@ -7,6 +7,9 @@ import { CombatSystem } from '../systems/CombatSystem'
 import { HUD } from '../ui/HUD'
 import { computeIsFiring } from '../systems/fireIntent'
 
+// Balance constants
+const AIM_ASSIST_RADIUS = 2
+
 export class Game {
   private scene: THREE.Scene
   private camera: THREE.PerspectiveCamera
