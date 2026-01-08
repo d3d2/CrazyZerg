@@ -12,6 +12,7 @@ export class CombatSystem {
   private attackCooldown = 2
   private lastAttackTime = 0
   private targetEnemy: Enemy | null = null
+  private isFiring = false
 
   constructor(scene: THREE.Scene, world: World) {
     this.scene = scene
@@ -22,14 +23,18 @@ export class CombatSystem {
     this.targetEnemy = enemy
   }
 
+  public setFireIntent(isFiring: boolean): void {
+    this.isFiring = isFiring
+  }
+
   public update(
     dt: number,
     currentTime: number,
     guardian: Guardian,
     enemies: Enemy[]
   ): void {
-    // Auto-attack logic
-    if (currentTime - this.lastAttackTime >= this.attackCooldown) {
+    // Auto-attack logic (only fires when isFiring is true)
+    if (this.isFiring && currentTime - this.lastAttackTime >= this.attackCooldown) {
       const target = this.findTarget(guardian, enemies)
       if (target) {
         this.fireProjectile(guardian, target)

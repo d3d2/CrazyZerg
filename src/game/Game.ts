@@ -5,6 +5,7 @@ import { InputSystem } from '../systems/InputSystem'
 import { WaveManager } from './WaveManager'
 import { CombatSystem } from '../systems/CombatSystem'
 import { HUD } from '../ui/HUD'
+import { computeIsFiring } from '../systems/fireIntent'
 
 export class Game {
   private scene: THREE.Scene
@@ -170,6 +171,11 @@ export class Game {
     this.kills += waveResult.enemiesKilled
 
     // Update combat system
+    const isFiring = computeIsFiring({
+      leftMouseDown: this.input.isLeftMouseDown(),
+      gameOver: this.gameOver,
+    })
+    this.combatSystem.setFireIntent(isFiring)
     this.combatSystem.update(
       dt,
       this.gameTime,
