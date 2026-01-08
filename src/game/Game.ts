@@ -56,7 +56,7 @@ export class Game {
     this.guardian = new Guardian(this.scene, startPos)
 
     // Input System
-    this.input = new InputSystem()
+    this.input = new InputSystem(this.renderer.domElement)
 
     // Wave Manager
     this.waveManager = new WaveManager(this.scene, this.world)
