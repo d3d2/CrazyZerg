@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, vi } from 'vitest'
+import { describe, expect, test, beforeEach } from 'vitest'
 import * as THREE from 'three'
 import { CombatSystem } from './CombatSystem'
 import { Guardian } from '../entities/Guardian'

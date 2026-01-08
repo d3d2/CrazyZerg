@@ -20,6 +20,10 @@ export abstract class Enemy {
   private strafeChangeTimer = 0
   private readonly STRAFE_CHANGE_INTERVAL = 1.5 // Change direction every 1.5 seconds
 
+  // Target highlight
+  private highlightMesh?: THREE.Mesh
+  private isHighlighted = false
+
   constructor(
     scene: THREE.Scene,
     startPosition: THREE.Vector3,
@@ -80,6 +84,9 @@ export abstract class Enemy {
 
     this.mesh.position.copy(this.position)
 
+    // Update highlight position
+    this.updateHighlight()
+
     // Face target
     if (distance > 0.1) {
       const angle = Math.atan2(
@@ -111,7 +118,54 @@ export abstract class Enemy {
     return this.position.distanceTo(target)
   }
 
+  public setHighlighted(scene: THREE.Scene, highlighted: boolean): void {
+    if (this.isHighlighted === highlighted) return
+
+    this.isHighlighted = highlighted
+
+    if (highlighted) {
+      // Create highlight mesh
+      const geometry = new THREE.RingGeometry(2, 2.3, 32)
+      const material = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide
+      })
+      this.highlightMesh = new THREE.Mesh(geometry, material)
+      this.highlightMesh.rotation.x = -Math.PI / 2
+      this.highlightMesh.position.copy(this.position)
+      this.highlightMesh.position.y += 0.1 // Slightly above ground
+      scene.add(this.highlightMesh)
+    } else if (this.highlightMesh) {
+      // Remove highlight mesh
+      scene.remove(this.highlightMesh)
+      this.highlightMesh.geometry.dispose()
+      if (this.highlightMesh.material instanceof THREE.Material) {
+        this.highlightMesh.material.dispose()
+      }
+      this.highlightMesh = undefined
+    }
+  }
+
+  public updateHighlight(): void {
+    if (this.highlightMesh) {
+      this.highlightMesh.position.copy(this.position)
+      this.highlightMesh.position.y += 0.1
+    }
+  }
+
   public dispose(scene: THREE.Scene): void {
+    // Clean up highlight
+    if (this.highlightMesh) {
+      scene.remove(this.highlightMesh)
+      this.highlightMesh.geometry.dispose()
+      if (this.highlightMesh.material instanceof THREE.Material) {
+        this.highlightMesh.material.dispose()
+      }
+      this.highlightMesh = undefined
+    }
+
     scene.remove(this.mesh)
     this.mesh.traverse((child) => {
       if (child instanceof THREE.Mesh) {
